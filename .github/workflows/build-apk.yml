@@ -42,15 +42,23 @@ jobs:
         working-directory: ./Frontend/mobile
         run: npx expo prebuild --platform android --clean
 
-      - name: Build Android APK
+      - name: Build Android Release APK
         working-directory: ./Frontend/mobile/android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleRelease
 
-      - name: Create Release and Upload APK
+      - name: Sign APK
+        working-directory: ./Frontend/mobile/android
+        run: |
+          keytool -genkey -v -keystore my-release-key.keystore -alias my-key-alias -keyalg RSA -keysize 2048 -validity 10000 -storepass password -keypass password -dname "CN=FYP, OU=App, O=App, L=City, ST=State, C=US"
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
+          APK_FILE=$(find app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          $BUILD_TOOLS_DIR/apksigner sign --ks my-release-key.keystore --ks-pass pass:password --key-pass pass:password --out app-release-signed.apk $APK_FILE
+
+      - name: Create Release and Upload Signed APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: Latest Build
-          files: Frontend/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          tag_name: signed-release
+          name: Latest Signed Release Build
+          files: Frontend/mobile/android/app-release-signed.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
